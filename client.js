@@ -6,11 +6,6 @@ window.__ModuleLoader__.load({
     const NS = 'claudeZhBridge';
     const NODE_SLOT = 'conversation.chat.node';
     const ACTION_SLOT = 'conversation.chat.assistant-actions';
-    // Children the shipped `assistant-step` renderer declares; used when its entry is not found.
-    const ASSISTANT_CHILDREN = {
-      'conversation.chat.reasoning.body': { kind: 'single', scope: 'session' },
-      'conversation.chat.message.images': { kind: 'single', scope: 'session' },
-    };
 
     const zh = {
       showChinese: '查看中文',
@@ -314,14 +309,24 @@ window.__ModuleLoader__.load({
         // Wrap (not reimplement) the shipped reply renderer: same options, same props,
         // only the text blocks of `node` are swapped for their translations.
         const assistant = createAssistantNodeView(ctx);
+        // The shipped entry owns the child slot declarations. Declaring them again makes
+        // the shipped registration throw ("already declared") and blanks every reply, and
+        // releasing them on unload would undeclare the shipped ones. This proxy has no own
+        // keys (register/release see nothing) but answers `children[key]`, the only check
+        // `renderSlot` makes, with the shipped entry's live declaration.
+        const borrowedChildren = new Proxy({}, {
+          get(_target, key) {
+            const shipped = assistant.shippedRenderer(assistant.component);
+            return shipped && shipped.children ? shipped.children[key] : undefined;
+          },
+        });
         ctx.slots.inject(NODE_SLOT, () => {
-          const shipped = assistant.shippedRenderer(assistant.component);
           return ctx.slots.register({
             name: NODE_SLOT,
             key: 'assistant-step',
             locale: 'chat',
             priority: -10,
-            children: (shipped && shipped.children) || ASSISTANT_CHILDREN,
+            children: borrowedChildren,
             inject: (...args) => {
               const current = assistant.shippedRenderer(assistant.component);
               return current && typeof current.inject === 'function' ? current.inject(...args) : {};
