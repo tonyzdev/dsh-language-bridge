@@ -4,199 +4,208 @@ window.__ModuleLoader__.load({
     const React = require('react');
     const h = React.createElement;
     const NS = 'claudeZhBridge';
-    const SLOT = 'conversation.chat.turnTail';
-    const MARKDOWN_FACTORY = 'conversation.chat.reasoning.content';
+    const NODE_SLOT = 'conversation.chat.node';
+    const ACTION_SLOT = 'conversation.chat.assistant-actions';
+    // Children the shipped `assistant-step` renderer declares; used when its entry is not found.
+    const ASSISTANT_CHILDREN = {
+      'conversation.chat.reasoning.body': { kind: 'single', scope: 'session' },
+      'conversation.chat.message.images': { kind: 'single', scope: 'session' },
+    };
 
     const zh = {
-      title: '中文翻译 · DeepSeek',
-      translating: '正在翻译…',
-      failed: '翻译失败',
-      retry: '重试',
-      collapse: '收起',
-      expand: '展开',
-      copy: '复制',
-      copied: '已复制',
-      codeTitle: '代码',
-      wrap: '自动换行',
-      unwrap: '取消换行',
-      footnotes: '脚注',
+      showChinese: '查看中文',
+      showOriginal: '查看原文',
+      showChineseHint: '用 DeepSeek 译文替换这一轮回答',
+      showOriginalHint: '显示 Claude 的英文原文',
+      translating: '翻译中…',
+      failed: '翻译失败，点击重试',
       viewOriginal: '查看原文',
       viewEnglish: '查看英文',
       viewOriginalHint: '显示你输入的中文原文',
       viewEnglishHint: '显示实际发给 Claude 的英文',
     };
     const en = {
-      title: 'Chinese translation · DeepSeek',
+      showChinese: 'View Chinese',
+      showOriginal: 'View original',
+      showChineseHint: 'Replace this reply with the DeepSeek translation',
+      showOriginalHint: 'Show Claude\'s original English',
       translating: 'Translating…',
-      failed: 'Translation failed',
-      retry: 'Retry',
-      collapse: 'Collapse',
-      expand: 'Expand',
-      copy: 'Copy',
-      copied: 'Copied',
-      codeTitle: 'Code',
-      wrap: 'Wrap',
-      unwrap: 'Unwrap',
-      footnotes: 'Footnotes',
+      failed: 'Translation failed, click to retry',
       viewOriginal: 'View original',
       viewEnglish: 'View English',
       viewOriginalHint: 'Show the text you typed',
       viewEnglishHint: 'Show the English sent to Claude',
     };
 
-    // One request per exact Turn text; results survive remounts while the page lives.
-    const results = new Map();
-    function translate(sessionId, text, models) {
-      const key = JSON.stringify([sessionId, text, models]);
-      let task = results.get(key);
-      if (task === undefined) {
-        task = fetch(new URL('api/claude-zh-bridge/translate', document.baseURI), {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ sessionId, text, models }),
-        }).then(async (response) => {
-          const value = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(value.error || `HTTP ${response.status}`);
-          return value;
-        });
-        results.set(key, task);
-        task.catch(() => {
-          if (results.get(key) === task) results.delete(key);
-        });
-      }
-      return task;
-    }
-
-    /** Stable string selector: every Assistant text of one Turn plus its attributed models. */
-    function turnSource(snapshot, turnNo) {
-      const texts = [];
-      let models = null;
-      for (const key of snapshot.locations.getTurn(turnNo)) {
-        const node = snapshot.nodes.get(key);
-        if (node === undefined) continue;
-        if (node.kind === 'assistant-step') {
-          for (const block of node.data.blocks) {
-            if (block.kind === 'text' && block.text.trim() !== '') texts.push(block.text);
-          }
-        } else if (node.kind === 'turn-tail') {
-          const routes = node.data && node.data.tokenUsage && node.data.tokenUsage.routes;
-          if (Array.isArray(routes)) models = routes.map((route) => route.model);
-        }
-      }
-      return JSON.stringify({ text: texts.join('\n\n'), models });
-    }
-
-    const styles = {
-      card: {
-        border: '1px solid var(--dsw-alias-border-l1)',
-        borderRadius: 12,
-        background: 'var(--dsw-alias-bg-layer-1)',
-        padding: '8px 14px 10px',
-        color: 'var(--dsw-alias-label-primary)',
-      },
-      header: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        fontSize: 12,
-        lineHeight: '20px',
-        color: 'var(--dsw-alias-label-secondary)',
-      },
-      title: { flex: 1, minWidth: 0 },
-      button: {
-        border: 'none',
-        background: 'transparent',
-        color: 'var(--dsw-alias-label-secondary)',
-        font: 'inherit',
-        padding: '0 6px',
-        borderRadius: 6,
-        cursor: 'pointer',
-      },
-      error: { color: 'var(--dsw-alias-state-error-primary)' },
-      body: { marginTop: 4 },
-      plain: { whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.7 },
+    // ---- Shared page-lifetime state ---------------------------------------------------
+    // blocks: `${sessionId}\0${text}` -> { status: 'pending'|'ready'|'skipped'|'failed', text? }
+    // views:  `${sessionId}:${turn}` -> 'zh' | 'en' (absent = 'zh', the default view)
+    const blocks = new Map();
+    const views = new Map();
+    const listeners = new Set();
+    let version = 0;
+    const notify = () => {
+      version += 1;
+      for (const listener of listeners) listener();
     };
+    const subscribe = (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    };
+    const useVersion = () => React.useSyncExternalStore(subscribe, () => version);
 
-    function TurnTranslation(props) {
-      const { turn, sessionId, useChat, t, renderFactorySlot } = props;
-      const turnNo = typeof turn === 'number' ? turn : turn && turn.turn;
-      const open = typeof turn === 'object' && turn !== null && turn.status === 'open';
-      const source = useChat((snapshot) => (typeof turnNo === 'number' ? turnSource(snapshot, turnNo) : '{"text":""}'));
-      const { text, models } = React.useMemo(() => JSON.parse(source), [source]);
-      const [state, setState] = React.useState({ kind: 'idle' });
-      const [collapsed, setCollapsed] = React.useState(false);
-      const [attempt, setAttempt] = React.useState(0);
-
-      React.useEffect(() => {
-        if (open || text.trim() === '' || typeof sessionId !== 'string') {
-          setState({ kind: 'idle' });
-          return undefined;
-        }
-        let live = true;
-        setState({ kind: 'pending' });
-        translate(sessionId, text, models).then(
-          (value) => {
-            if (!live) return;
-            setState(typeof value.text === 'string' ? { kind: 'ready', text: value.text } : { kind: 'skipped' });
-          },
-          (error) => {
-            if (live) setState({ kind: 'failed', message: String((error && error.message) || error) });
-          },
-        );
-        return () => {
-          live = false;
-        };
-      }, [sessionId, text, source, open, attempt]);
-
-      if (state.kind === 'idle' || state.kind === 'skipped') return null;
-
-      const labels = {
-        code: {
-          copyLabel: t('copy'),
-          copiedLabel: t('copied'),
-          toolbarLabels: { codeLabel: t('codeTitle'), wrapLabel: t('wrap'), unwrapLabel: t('unwrap') },
-        },
-        footnotes: t('footnotes'),
-      };
-      const renderBody = (markdown) => (typeof renderFactorySlot === 'function'
-        ? renderFactorySlot(MARKDOWN_FACTORY, { text: markdown, running: false, labels })
-        : h('div', { style: styles.plain }, markdown));
-
-      return h('section', {
-        style: styles.card,
-        'data-claude-zh-bridge': state.kind,
-        lang: 'zh-CN',
-      },
-      h('div', { style: styles.header },
-        h('span', { style: styles.title }, t('title')),
-        state.kind === 'pending' && h('span', { role: 'status' }, t('translating')),
-        state.kind === 'failed' && h('span', { role: 'status', style: styles.error, title: state.message }, t('failed')),
-        state.kind === 'failed' && h('button', {
-          type: 'button',
-          style: styles.button,
-          onClick: () => setAttempt((value) => value + 1),
-        }, t('retry')),
-        state.kind === 'ready' && h('button', {
-          type: 'button',
-          style: styles.button,
-          'aria-expanded': !collapsed,
-          onClick: () => setCollapsed((value) => !value),
-        }, t(collapsed ? 'expand' : 'collapse'))),
-      state.kind === 'ready' && !collapsed && h('div', { style: styles.body }, renderBody(state.text)));
+    const blockKey = (sessionId, text) => `${sessionId}\u0000${text}`;
+    const viewOf = (sessionId, turn) => views.get(`${sessionId}:${turn}`) ?? 'zh';
+    function setView(sessionId, turn, view) {
+      views.set(`${sessionId}:${turn}`, view);
+      notify();
     }
 
-    // ---- User bubble with an original/English toggle -------------------------------
-    // Replaces Chat's `user` and `steering` renderers. The bubble body still comes from
-    // the shipped `conversation.chat.user.content` Factory; class names below are the
-    // shipped ui-chat CSS modules, so a renamed class only degrades spacing.
+    /** Start (once) the Chinese translation of one Assistant text block. */
+    function ensure(sessionId, text, models) {
+      const key = blockKey(sessionId, text);
+      const current = blocks.get(key);
+      if (current !== undefined && current.status !== 'failed') return;
+      blocks.set(key, { status: 'pending' });
+      fetch(new URL('api/claude-zh-bridge/translate', document.baseURI), {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sessionId, text, models }),
+      }).then(async (response) => {
+        const value = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(value.error || `HTTP ${response.status}`);
+        blocks.set(key, typeof value.text === 'string' ? { status: 'ready', text: value.text } : { status: 'skipped' });
+      }).catch(() => {
+        blocks.set(key, { status: 'failed' });
+      }).finally(notify);
+    }
+    function retryFailed(sessionId, texts, models) {
+      for (const text of texts) {
+        if (blocks.get(blockKey(sessionId, text))?.status === 'failed') ensure(sessionId, text, models);
+      }
+      notify();
+    }
+
+    const isText = (block) => block.kind === 'text' && typeof block.text === 'string' && block.text.trim() !== '';
+    const modelsOf = (tail) => {
+      const routes = tail && tail.tokenUsage && tail.tokenUsage.routes;
+      return Array.isArray(routes) ? routes.map((route) => route.model) : null;
+    };
+    // Unknown attribution lets the Host decide from the Session's model.
+    const maybeClaude = (models) => models === null || models.some((model) => /claude/i.test(model));
+
+    // ---- Assistant reply: the shipped renderer with Chinese text in place ------------------
+    function createAssistantNodeView(ctx) {
+      function shippedRenderer(self) {
+        let best;
+        for (const entry of ctx.slots.entries(NODE_SLOT)) {
+          if (entry.options.key !== 'assistant-step' || entry.component === self) continue;
+          if (best === undefined || (entry.options.priority ?? 0) < (best.options.priority ?? 0)) best = entry;
+        }
+        return best;
+      }
+      function ClaudeZhAssistantNodeView(props) {
+        const { node, sessionId, useTurnData } = props;
+        const data = node.data;
+        const turn = node.location && (node.location.kind === 'turn' || node.location.kind === 'step') ? node.location.turn : undefined;
+        const turnNo = turn && turn.turn;
+        const closed = turn !== undefined && turn.status === 'closed' && data.status === 'settled';
+        const tail = typeof useTurnData === 'function' ? useTurnData('turn-tail') : undefined;
+        const models = modelsOf(tail);
+        const active = closed && typeof sessionId === 'string' && maybeClaude(models);
+        const tick = useVersion();
+        const view = active ? viewOf(sessionId, turnNo) : 'en';
+        const modelsKey = JSON.stringify(models);
+
+        React.useEffect(() => {
+          if (!active || view !== 'zh') return;
+          for (const block of data.blocks) if (isText(block)) ensure(sessionId, block.text, models);
+        }, [active, view, sessionId, data.blocks, modelsKey]);
+
+        const shown = React.useMemo(() => {
+          if (view !== 'zh') return node;
+          let changed = false;
+          const replaced = data.blocks.map((block) => {
+            if (!isText(block)) return block;
+            const cached = blocks.get(blockKey(sessionId, block.text));
+            if (cached === undefined || cached.status !== 'ready') return block;
+            changed = true;
+            return { ...block, text: cached.text };
+          });
+          return changed ? { ...node, data: { ...data, blocks: replaced } } : node;
+        }, [node, view, sessionId, tick]);
+
+        const shipped = shippedRenderer(ClaudeZhAssistantNodeView);
+        if (shipped === undefined) return null;
+        return h(shipped.component, { ...props, node: shown });
+      }
+      return { component: ClaudeZhAssistantNodeView, shippedRenderer };
+    }
+
+    // ---- Toggle in the reply's action row (next to Copy) ----------------------------------
+    /** Stable string selector: the Turn closed by one assistant message, its texts and models. */
+    function turnOfMessage(snapshot, messageId) {
+      const order = snapshot.timeline.turnOrder;
+      for (let index = order.length - 1; index >= 0; index--) {
+        const turnNo = order[index];
+        const keys = snapshot.locations.getTurn(turnNo);
+        let tail;
+        const texts = [];
+        for (const key of keys) {
+          const node = snapshot.nodes.get(key);
+          if (node === undefined) continue;
+          if (node.kind === 'turn-tail') tail = node.data;
+          else if (node.kind === 'assistant-step') for (const block of node.data.blocks) if (isText(block)) texts.push(block.text);
+        }
+        const finalNode = tail && tail.closing && tail.closing.finalNode;
+        if (finalNode && finalNode.messageId === messageId) return JSON.stringify({ turn: turnNo, texts, models: modelsOf(tail) });
+      }
+      return 'null';
+    }
+
     const CHAT_CLASS = {
       userRow: 'AkCqbG_userRow',
       actions: 'ZITbJG_actions',
       action: 'ZITbJG_action',
       timeStart: 'ZITbJG_timeStart',
     };
+    const textButton = { width: 'auto', padding: '0 8px', fontSize: 12, whiteSpace: 'nowrap' };
 
+    function ReplyLanguageToggle(props) {
+      const { messageId, sessionId, useChat, t } = props;
+      const source = useChat((snapshot) => turnOfMessage(snapshot, messageId));
+      const info = React.useMemo(() => JSON.parse(source), [source]);
+      useVersion();
+      if (info === null || typeof sessionId !== 'string' || info.texts.length === 0 || !maybeClaude(info.models)) return null;
+      const states = info.texts.map((text) => blocks.get(blockKey(sessionId, text))?.status);
+      // Every block skipped (already Chinese, or the Host says this is not Claude): nothing to switch.
+      if (states.every((status) => status === 'skipped')) return null;
+      const view = viewOf(sessionId, info.turn);
+      const pending = view === 'zh' && states.some((status) => status === 'pending' || status === undefined);
+      const failed = view === 'zh' && !pending && states.some((status) => status === 'failed');
+      let label = view === 'zh' ? t('showOriginal') : t('showChinese');
+      if (pending) label = t('translating');
+      if (failed) label = t('failed');
+      return h('button', {
+        type: 'button',
+        className: CHAT_CLASS.action,
+        style: { ...textButton, opacity: pending ? 0.6 : undefined },
+        disabled: pending,
+        title: view === 'zh' ? t('showOriginalHint') : t('showChineseHint'),
+        'aria-pressed': view === 'zh',
+        'data-claude-zh-reply': failed ? 'failed' : pending ? 'pending' : view,
+        onClick: () => {
+          if (failed) retryFailed(sessionId, info.texts, info.models);
+          else setView(sessionId, info.turn, view === 'zh' ? 'en' : 'zh');
+        },
+      }, label);
+    }
+
+    // ---- User bubble with an original/English toggle -------------------------------
+    // Replaces Chat's `user` and `steering` renderers. The bubble body still comes from
+    // the shipped `conversation.chat.user.content` Factory; class names below are the
+    // shipped ui-chat CSS modules, so a renamed class only degrades spacing.
     function contentParts(content) {
       const texts = [];
       const attachments = [];
@@ -272,7 +281,7 @@ window.__ModuleLoader__.load({
             original !== undefined && h('button', {
               type: 'button',
               className: CHAT_CLASS.action,
-              style: { width: 'auto', padding: '0 8px', fontSize: 12, whiteSpace: 'nowrap' },
+              style: textButton,
               title: bridgeT(showOriginal ? 'viewEnglishHint' : 'viewOriginalHint'),
               'aria-pressed': showOriginal,
               onClick: () => setShowOriginal((value) => !value),
@@ -294,20 +303,37 @@ window.__ModuleLoader__.load({
         ctx.effect(() => ctx.locale.register(NS, 'en', en));
         const UserNodeView = createUserNodeView(ctx.locale.bind(NS));
         for (const key of ['user', 'steering']) {
-          ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
-            name: 'conversation.chat.node',
+          ctx.slots.inject(NODE_SLOT, () => ctx.slots.register({
+            name: NODE_SLOT,
             key,
             locale: 'chat',
             // Lower wins; shipped renderers use 0.
             priority: -10,
           }, UserNodeView));
         }
-        ctx.slots.inject(SLOT, () => ctx.slots.register({
-          name: SLOT,
+        // Wrap (not reimplement) the shipped reply renderer: same options, same props,
+        // only the text blocks of `node` are swapped for their translations.
+        const assistant = createAssistantNodeView(ctx);
+        ctx.slots.inject(NODE_SLOT, () => {
+          const shipped = assistant.shippedRenderer(assistant.component);
+          return ctx.slots.register({
+            name: NODE_SLOT,
+            key: 'assistant-step',
+            locale: 'chat',
+            priority: -10,
+            children: (shipped && shipped.children) || ASSISTANT_CHILDREN,
+            inject: (...args) => {
+              const current = assistant.shippedRenderer(assistant.component);
+              return current && typeof current.inject === 'function' ? current.inject(...args) : {};
+            },
+          }, assistant.component);
+        });
+        ctx.slots.inject(ACTION_SLOT, () => ctx.slots.register({
+          name: ACTION_SLOT,
           id: 'claude-zh-bridge',
-          order: 1,
+          order: 5,
           locale: NS,
-        }, TurnTranslation));
+        }, ReplyLanguageToggle));
       },
     };
   },
