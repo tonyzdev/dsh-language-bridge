@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Claude 中英桥接",
+    "description": "使用 Claude 系列模型时，用 DeepSeek 把你的中文输入自动翻译成英文再发送，并在每轮 Claude 回答下方显示中文翻译。"
+  }
+}

@@ -1,0 +1,13 @@
+- insert:
+    # DeepSeek Flash translation service shipped with dsh (experimental, opt-in).
+    - id: claude-zh-bridge-translator
+      name: '@deepseek-ai/dsh-experimental-translator'
+    - id: claude-zh-bridge
+      name: '@local/claude-zh-bridge'
+      config:
+        # auto picks deepseek-official (API key), then deepseek-account; or name one explicitly.
+        provider: auto
+        # Case-insensitive regular expression tested against the model id.
+        modelPattern: claude
+        translateInput: true
+        translateOutput: true
