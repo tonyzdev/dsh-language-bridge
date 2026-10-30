@@ -1,8 +1,8 @@
 {
   "name": "@local/claude-zh-bridge",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "Translate Chinese prompts to English for Claude models with DeepSeek, and show Claude replies in Chinese.",
+  "description": "Translate Chinese prompts to English for Claude and Gemini models with DeepSeek, and show their replies in Chinese.",
   "type": "module",
   "exports": {
     ".": "./index.js",

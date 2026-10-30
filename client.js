@@ -11,25 +11,25 @@ window.__ModuleLoader__.load({
       showChinese: '查看中文',
       showOriginal: '查看原文',
       showChineseHint: '用 DeepSeek 译文替换这一轮回答',
-      showOriginalHint: '显示 Claude 的英文原文',
+      showOriginalHint: '显示模型的英文原文',
       translating: '翻译中…',
       failed: '翻译失败，点击重试',
       viewOriginal: '查看原文',
       viewEnglish: '查看英文',
       viewOriginalHint: '显示你输入的中文原文',
-      viewEnglishHint: '显示实际发给 Claude 的英文',
+      viewEnglishHint: '显示实际发给模型的英文',
     };
     const en = {
       showChinese: 'View Chinese',
       showOriginal: 'View original',
       showChineseHint: 'Replace this reply with the DeepSeek translation',
-      showOriginalHint: 'Show Claude\'s original English',
+      showOriginalHint: 'Show the model\'s original English',
       translating: 'Translating…',
       failed: 'Translation failed, click to retry',
       viewOriginal: 'View original',
       viewEnglish: 'View English',
       viewOriginalHint: 'Show the text you typed',
-      viewEnglishHint: 'Show the English sent to Claude',
+      viewEnglishHint: 'Show the English sent to the model',
     };
 
     // ---- Shared page-lifetime state ---------------------------------------------------
@@ -88,7 +88,7 @@ window.__ModuleLoader__.load({
       return Array.isArray(routes) ? routes.map((route) => route.model) : null;
     };
     // Unknown attribution lets the Host decide from the Session's model.
-    const maybeClaude = (models) => models === null || models.some((model) => /claude/i.test(model));
+    const maybeBridged = (models) => models === null || models.some((model) => /claude|gemini/i.test(model));
 
     // ---- Assistant reply: the shipped renderer with Chinese text in place ------------------
     function createAssistantNodeView(ctx) {
@@ -108,7 +108,7 @@ window.__ModuleLoader__.load({
         const closed = turn !== undefined && turn.status === 'closed' && data.status === 'settled';
         const tail = typeof useTurnData === 'function' ? useTurnData('turn-tail') : undefined;
         const models = modelsOf(tail);
-        const active = closed && typeof sessionId === 'string' && maybeClaude(models);
+        const active = closed && typeof sessionId === 'string' && maybeBridged(models);
         const tick = useVersion();
         const view = active ? viewOf(sessionId, turnNo) : 'en';
         const modelsKey = JSON.stringify(models);
@@ -172,9 +172,9 @@ window.__ModuleLoader__.load({
       const source = useChat((snapshot) => turnOfMessage(snapshot, messageId));
       const info = React.useMemo(() => JSON.parse(source), [source]);
       useVersion();
-      if (info === null || typeof sessionId !== 'string' || info.texts.length === 0 || !maybeClaude(info.models)) return null;
+      if (info === null || typeof sessionId !== 'string' || info.texts.length === 0 || !maybeBridged(info.models)) return null;
       const states = info.texts.map((text) => blocks.get(blockKey(sessionId, text))?.status);
-      // Every block skipped (already Chinese, or the Host says this is not Claude): nothing to switch.
+      // Every block skipped (already Chinese, or the Host says this model is not bridged): nothing to switch.
       if (states.every((status) => status === 'skipped')) return null;
       const view = viewOf(sessionId, info.turn);
       const pending = view === 'zh' && states.some((status) => status === 'pending' || status === undefined);

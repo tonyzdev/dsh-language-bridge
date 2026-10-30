@@ -8,6 +8,7 @@
         # auto picks deepseek-official (API key), then deepseek-account; or name one explicitly.
         provider: auto
         # Case-insensitive regular expression tested against the model id.
-        modelPattern: claude
+        # Both the Claude and the Gemini families get the English-input / Chinese-reply bridge.
+        modelPattern: 'claude|gemini'
         translateInput: true
         translateOutput: true

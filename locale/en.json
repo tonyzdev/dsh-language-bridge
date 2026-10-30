@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Claude Chinese Bridge",
-    "description": "For Claude models, DeepSeek translates your Chinese prompts into English before sending, and shows a Chinese translation under each Claude reply."
+    "title": "Chinese Bridge",
+    "description": "For Claude and Gemini models, DeepSeek translates your Chinese prompts into English before sending, and shows a Chinese translation under each reply."
   }
 }

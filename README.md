@@ -1,12 +1,12 @@
 # dsh-claude-zh-bridge
 
-DeepSeek Harness 本地插件：使用 Claude 系列模型时，用 DeepSeek Flash 把中文输入翻译成英文再发给
-Claude，并在每轮 Claude 回答下方显示中文翻译卡片。
+DeepSeek Harness 本地插件：使用 Claude 系列或 Gemini 系列模型时，用 DeepSeek Flash 把中文输入翻译成英文
+再发给模型，并在每轮回答下方显示中文翻译卡片。
 
 - `index.js`（Host）：
-  - `agent/pre-step`：当前模型 id 匹配 `modelPattern`（默认 `claude`）时，把用户输入里的中文翻成英文；
-    代码块、行内代码、链接、`@路径` 用占位符保护、原样保留。中文原文存在消息 `source.claudeZhBridge`
-    （模型不可见），供界面「查看原文」使用。系统注入的上下文、子代理消息不翻译。
+  - `agent/pre-step`：当前模型 id 匹配 `modelPattern`（默认 `claude|gemini`，即 Claude 和 Gemini 两族）时，
+    把用户输入里的中文翻成英文；代码块、行内代码、链接、`@路径` 用占位符保护、原样保留。中文原文存在消息
+    `source.claudeZhBridge`（模型不可见），供界面「查看原文」使用。系统注入的上下文、子代理消息不翻译。
   - 仅限 owner 的 `POST /api/claude-zh-bridge/translate`：浏览器请求一轮回答的中文译文。
   - 翻译走 dsh 自带的 `@deepseek-ai/dsh-experimental-translator`（`deepseek-official` 优先，其次
     `deepseek-account`），付费结果存在会话里，重新打开不重复收费。

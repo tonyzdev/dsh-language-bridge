@@ -1,12 +1,13 @@
 /**
- * Host half of the Claude Chinese bridge.
+ * Host half of the Claude/Gemini Chinese bridge.
  *
- * - `agent/pre-step`: when the Session's model matches `modelPattern`, user-authored
- *   text containing Chinese is translated to English by DeepSeek before it enters the
- *   step, so the durable `user/message` (and therefore the model input) is English.
+ * - `agent/pre-step`: when the Session's model matches `modelPattern` (Claude and Gemini
+ *   families by default), user-authored text containing Chinese is translated to English
+ *   by DeepSeek before it enters the step, so the durable `user/message` (and therefore
+ *   the model input) is English.
  * - `POST /api/claude-zh-bridge/translate`: the browser half asks for the Chinese
- *   translation of one completed Claude Turn. Paid DeepSeek results are stored by the
- *   translator in the Session, so reopening reuses them.
+ *   translation of one completed bridged-model Turn. Paid DeepSeek results are stored by
+ *   the translator in the Session, so reopening reuses them.
  */
 export const inject = ['translator', 'connection']
 
@@ -22,7 +23,7 @@ const CHUNK_CONCURRENCY = 3
 export function apply(ctx, config = {}) {
   const options = {
     provider: config.provider ?? 'auto',
-    modelPattern: new RegExp(config.modelPattern ?? 'claude', 'i'),
+    modelPattern: new RegExp(config.modelPattern ?? 'claude|gemini', 'i'),
     translateInput: config.translateInput !== false,
     translateOutput: config.translateOutput !== false,
   }
@@ -43,7 +44,7 @@ export function apply(ctx, config = {}) {
     return routes.get(agent.id) ?? agent.session?.requestContext?.() ?? agent.options
   }
 
-  function isClaudeModel(model) {
+  function isBridgedModel(model) {
     return typeof model === 'string' && options.modelPattern.test(model)
   }
 
@@ -176,7 +177,7 @@ export function apply(ctx, config = {}) {
     const decision = await next()
     if (!options.translateInput || decision.kind !== 'enter') return decision
     const { agent, signal } = payload
-    if (!isClaudeModel(routeOfAgent(agent)?.model)) return decision
+    if (!isBridgedModel(routeOfAgent(agent)?.model)) return decision
     let changed = false
     const messages = []
     for (const message of decision.messages) {
@@ -200,7 +201,7 @@ export function apply(ctx, config = {}) {
     headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
   })
 
-  async function sessionIsClaude(sessionId) {
+  async function sessionIsBridged(sessionId) {
     let route = routes.get(sessionId)
     if (route === undefined) {
       const agent = ctx.get('agents')?.get(sessionId)
@@ -210,7 +211,7 @@ export function apply(ctx, config = {}) {
       const resolved = await ctx.get('sessionController')?.resolveAgent(sessionId)
       if (resolved && 'agent' in resolved) route = routeOfAgent(resolved.agent)
     }
-    return isClaudeModel(route?.model)
+    return isBridgedModel(route?.model)
   }
 
   ctx.connection.fetch.register({
@@ -228,10 +229,10 @@ export function apply(ctx, config = {}) {
       if (typeof sessionId !== 'string' || typeof text !== 'string') return reply(400, { error: 'sessionId and text are required' })
       if (!options.translateOutput) return reply(200, { skipped: 'disabled' })
       try {
-        const claude = Array.isArray(models) && models.length > 0
-          ? models.some(isClaudeModel)
-          : await sessionIsClaude(sessionId)
-        if (!claude) return reply(200, { skipped: 'not-claude' })
+        const bridged = Array.isArray(models) && models.length > 0
+          ? models.some(isBridgedModel)
+          : await sessionIsBridged(sessionId)
+        if (!bridged) return reply(200, { skipped: 'not-bridged' })
         if (!needsChinese(text)) return reply(200, { skipped: 'already-chinese' })
         const chinese = await translateText(sessionId, text, 'zh-CN', needsChinese, request.signal)
         if (chinese === undefined) return reply(502, { error: 'translation changed code or links' })
