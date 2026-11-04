@@ -52,7 +52,7 @@
 帮我把 DeepSeek Harness 插件 https://github.com/tonyzdev/dsh-language-bridge 安装到当前 profile：运行 `dsh plugin --profile "$DSH_PROFILE" add github:tonyzdev/dsh-language-bridge`（桌面版请用 app.asar 同级 runtime/cli/bin/dsh 里自带的 dsh），不要手动改 profile 文件。
 ```
 
-在 Harness 的「插件」页点 **添加插件**，填入下面的地址；安装完成后重启 DeepSeek Harness。
+在 Harness 的「插件」页点 **添加插件**，填入下面的地址；安装完成后点 **立即启用**；若插件的按钮没有出现，刷新页面或重启 DeepSeek Harness。
 
 ```
 https://github.com/tonyzdev/dsh-language-bridge

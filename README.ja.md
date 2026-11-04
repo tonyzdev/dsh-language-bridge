@@ -52,7 +52,7 @@
 Install the DeepSeek Harness plugin https://github.com/tonyzdev/dsh-language-bridge into my current profile: run `dsh plugin --profile "$DSH_PROFILE" add github:tonyzdev/dsh-language-bridge` (in the desktop app, use the bundled dsh at runtime/cli/bin/dsh next to app.asar). Do not edit profile files by hand.
 ```
 
-Harness の「プラグイン」ページで **Add plugin** をクリックし、次のアドレスを入力します。インストールが完了したら、DeepSeek Harness を再起動してください。
+Harness の「プラグイン」ページで **Add plugin** をクリックし、次のアドレスを入力します。インストールが完了したら **Enable now** をクリックします。プラグインのボタンが表示されない場合は、ページを再読み込みするか DeepSeek Harness を再起動してください。
 
 ```
 https://github.com/tonyzdev/dsh-language-bridge
