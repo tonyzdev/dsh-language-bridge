@@ -46,6 +46,12 @@ Plugin communautaire pour [DeepSeek Harness](https://github.com/deepseek-ai/deep
 
 **Prérequis :** DeepSeek Harness (testé avec la version 0.2.1-rc.5 sous macOS), configuré avec une clé API DeepSeek ou connecté à un compte DeepSeek ; c'est DeepSeek Flash qui assure la traduction.
 
+**Le plus rapide :** collez ceci dans n’importe quelle conversation DSH et laissez l’agent l’installer :
+
+```text
+Install the DeepSeek Harness plugin https://github.com/tonyzdev/dsh-language-bridge into my current profile: run `dsh plugin --profile "$DSH_PROFILE" add github:tonyzdev/dsh-language-bridge` (in the desktop app, use the bundled dsh at runtime/cli/bin/dsh next to app.asar). Do not edit profile files by hand.
+```
+
 Sur la page « Plugins » du Harness, cliquez sur **Add plugin** et saisissez l'adresse ci-dessous. Une fois l'installation terminée, redémarrez DeepSeek Harness.
 
 ```

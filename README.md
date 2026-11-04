@@ -46,6 +46,12 @@
 
 **需要**：DeepSeek Harness（已在 macOS 版 0.2.1-rc.5 上测试），并在其中配置 DeepSeek API key 或登录 DeepSeek 账号，翻译由 DeepSeek Flash 完成。
 
+**最快**：把下面这句话发给 DSH 里的任意会话，让它自己安装：
+
+```text
+帮我把 DeepSeek Harness 插件 https://github.com/tonyzdev/dsh-language-bridge 安装到当前 profile：运行 `dsh plugin --profile "$DSH_PROFILE" add github:tonyzdev/dsh-language-bridge`（桌面版请用 app.asar 同级 runtime/cli/bin/dsh 里自带的 dsh），不要手动改 profile 文件。
+```
+
 在 Harness 的「插件」页点 **添加插件**，填入下面的地址；安装完成后重启 DeepSeek Harness。
 
 ```

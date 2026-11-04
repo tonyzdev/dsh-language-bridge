@@ -46,6 +46,12 @@
 
 **Требования:** DeepSeek Harness (проверено на версии 0.2.1-rc.5 для macOS), в котором настроен API-ключ DeepSeek или выполнен вход в аккаунт DeepSeek; перевод выполняет DeepSeek Flash.
 
+**Быстрее всего:** вставьте это в любой чат DSH, и агент установит плагин сам:
+
+```text
+Install the DeepSeek Harness plugin https://github.com/tonyzdev/dsh-language-bridge into my current profile: run `dsh plugin --profile "$DSH_PROFILE" add github:tonyzdev/dsh-language-bridge` (in the desktop app, use the bundled dsh at runtime/cli/bin/dsh next to app.asar). Do not edit profile files by hand.
+```
+
 На странице «Plugins» в Harness нажмите **Add plugin** и введите указанный ниже адрес. После установки перезапустите DeepSeek Harness.
 
 ```
