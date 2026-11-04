@@ -2,6 +2,7 @@
   "name": "dsh-language-bridge",
   "version": "2.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Per-model working languages for DeepSeek Harness: DeepSeek translates prompts into the model's language and replies into yours.",
   "type": "module",
   "exports": {
