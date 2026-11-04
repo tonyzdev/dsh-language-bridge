@@ -6,7 +6,7 @@
 
 **给每个模型指定一种工作语言** —— 你用自己的语言输入，模型用它的工作语言回答，DeepSeek Flash 在中间翻译。
 
-<img src="https://img.shields.io/badge/DeepSeek_Harness-本地插件-4d6bfe?style=flat-square" alt="DeepSeek Harness 本地插件">
+<img src="https://img.shields.io/badge/DeepSeek_Harness-社区插件-4d6bfe?style=flat-square" alt="DeepSeek Harness 社区插件">
 <img src="https://img.shields.io/badge/翻译-DeepSeek_Flash-4d6bfe?style=flat-square" alt="翻译：DeepSeek Flash">
 <img src="https://img.shields.io/badge/界面-8_种语言-555?style=flat-square" alt="界面 8 种语言">
 
@@ -18,7 +18,7 @@
 
 <br>
 
-DeepSeek Harness 本地插件。你用自己的语言输入，DeepSeek Flash 把它翻译成模型的工作语言再发送；模型的回答再翻译回你的语言，显示在原位。任何语言、任何模型都可以配置——例如你用西班牙语，Claude 和 Gemini 设为英语，某个中文模型设为 `zh-CN`。
+[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 社区插件。你用自己的语言输入，DeepSeek Flash 把它翻译成模型的工作语言再发送；模型的回答再翻译回你的语言，显示在原位。任何语言、任何模型都可以配置——例如你用西班牙语，Claude 和 Gemini 设为英语，某个中文模型设为 `zh-CN`。
 
 <p align="center">
   <img src="docs/demo.gif" width="932" alt="用中文向 Claude 提问：模型收到英文、用英文回答，界面显示中文译文；「查看原文」「查看发送内容」可以切换">
@@ -44,29 +44,34 @@ DeepSeek Harness 本地插件。你用自己的语言输入，DeepSeek Flash 把
 
 ## 安装
 
-```sh
-DSH="/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh"
-"$DSH" plugin --profile desktop add link:$HOME/.dsh/local-plugins/dsh-language-bridge
+**需要**：DeepSeek Harness（已在 macOS 版 0.2.1-rc.5 上测试），并在其中配置 DeepSeek API key 或登录 DeepSeek 账号，翻译由 DeepSeek Flash 完成。
+
+在 Harness 的「插件」页点 **添加插件**，填入下面的地址；安装完成后重启 DeepSeek Harness。
+
+```
+https://github.com/tonyzdev/dsh-language-bridge
 ```
 
-然后重启 DeepSeek Harness 并刷新页面。
-
-> [!WARNING]
-> **从 `claude-zh-bridge` 迁移**：两个插件不要同时启用，否则会翻译两次。先移除旧插件再安装：
->
-> ```sh
-> "$DSH" plugin --profile desktop remove @local/claude-zh-bridge
-> ```
-
-> [!NOTE]
-> 旧会话不受影响：旧插件存的原文（`source.claudeZhBridge`）照常显示，已付费的译文直接复用（见下文[「兼容旧会话」](#兼容旧会话)）。
-
 <details>
-<summary><b>移除</b></summary>
+<summary><b>用命令行安装或移除</b></summary>
 
 <br>
 
-在 DSH「插件」页关闭或卸载，或运行：
+先完全退出 DeepSeek Harness，再运行（这是 macOS 上 `dsh` 的路径）：
+
+```sh
+DSH="/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh"
+"$DSH" plugin --profile desktop add github:tonyzdev/dsh-language-bridge
+```
+
+想改代码时，克隆到本地并以链接方式安装，改动直接作用于这份副本：
+
+```sh
+git clone https://github.com/tonyzdev/dsh-language-bridge ~/.dsh/local-plugins/dsh-language-bridge
+"$DSH" plugin --profile desktop add link:$HOME/.dsh/local-plugins/dsh-language-bridge
+```
+
+移除：在「插件」页卸载，或退出 Harness 后运行：
 
 ```sh
 "$DSH" plugin --profile desktop remove dsh-language-bridge
@@ -99,7 +104,7 @@ DSH="/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh"
 GPT 规则带边界，匹配 `gpt-5`、`openai/gpt-4o`、`chatgpt-4o`、`gpt-oss`，不会误中 `egpt-1`、`mygpt` 这类 id。
 
 > [!TIP]
-> 设置保存在 `$DSH_HOME/storages/language-bridge.json`，优先级高于 `cordis.patch.yml`。也可以在 `cordis.patch.yml` 里用 `rules`、`userLanguage` 设初始值，用 `provider`（`auto` / `deepseek-official` / `deepseek-account`）、`translateInput`、`translateOutput` 调整行为。
+> 设置保存在 `$DSH_HOME/storages/language-bridge.json`（`DSH_HOME` 默认为 `~/.dsh`），优先级高于 `cordis.patch.yml`。也可以在 `cordis.patch.yml` 里用 `rules`、`userLanguage` 设初始值，用 `provider`（`auto` / `deepseek-official` / `deepseek-account`）、`translateInput`、`translateOutput` 调整行为。
 
 ## 工作原理
 
@@ -157,9 +162,19 @@ flowchart LR
 - 没有虚词表的同文字语言对（如印尼语用户、斯瓦希里语模型），每段都会调用一次；
 - 只有汉字时分不清中文、日文以及简繁体，这时按需要翻译处理。
 
-## 兼容旧会话
+## 从 claude-zh-bridge 升级
 
-旧插件 `claude-zh-bridge` 把原文存在 `source.claudeZhBridge`，这个字段继续可读。翻译缓存的键包含文本片段、语言和路由，本插件保持了相同的占位符和分块方式（有单元测试保证），所以你的语言解析为 `zh-CN` 时，旧会话的译文直接复用。
+本插件的前身是只支持中文的 `claude-zh-bridge`；没用过它可以跳过这一节。
+
+> [!WARNING]
+> 两个插件不要同时启用，否则会翻译两次。先在「插件」页卸载旧插件，或用命令行：
+>
+> ```sh
+> DSH="/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh"
+> "$DSH" plugin --profile desktop remove @local/claude-zh-bridge
+> ```
+
+旧会话不受影响：旧插件存在 `source.claudeZhBridge` 里的原文照常显示。翻译缓存的键包含文本片段、语言和路由，本插件保持了相同的占位符和分块方式（有单元测试保证），所以你的语言解析为 `zh-CN` 时，旧会话里已付费的译文直接复用。
 
 ## 开发
 

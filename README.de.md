@@ -6,7 +6,7 @@
 
 **Lege für jedes Modell eine Arbeitssprache fest** — du schreibst in deiner eigenen Sprache, das Modell antwortet in seiner Arbeitssprache, und DeepSeek Flash übersetzt dazwischen.
 
-<img src="https://img.shields.io/badge/DeepSeek_Harness-lokales_Plugin-4d6bfe?style=flat-square" alt="DeepSeek Harness lokales Plugin">
+<img src="https://img.shields.io/badge/DeepSeek_Harness-Community--Plugin-4d6bfe?style=flat-square" alt="DeepSeek Harness Community-Plugin">
 <img src="https://img.shields.io/badge/Übersetzung-DeepSeek_Flash-4d6bfe?style=flat-square" alt="Übersetzung: DeepSeek Flash">
 <img src="https://img.shields.io/badge/Oberfläche-8_Sprachen-555?style=flat-square" alt="Oberfläche in 8 Sprachen">
 
@@ -18,7 +18,7 @@
 
 <br>
 
-Lokales Plugin für DeepSeek Harness. Du schreibst in deiner eigenen Sprache, DeepSeek Flash übersetzt den Text in die Arbeitssprache des Modells und sendet ihn dann; die Antwort des Modells wird zurück in deine Sprache übersetzt und an derselben Stelle angezeigt. Jede Sprache und jedes Modell lässt sich konfigurieren – Beispiel: Du schreibst Spanisch, Claude und Gemini sind auf Englisch eingestellt und ein chinesisches Modell auf `zh-CN`.
+Community-Plugin für [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). Du schreibst in deiner eigenen Sprache, DeepSeek Flash übersetzt den Text in die Arbeitssprache des Modells und sendet ihn dann; die Antwort des Modells wird zurück in deine Sprache übersetzt und an derselben Stelle angezeigt. Jede Sprache und jedes Modell lässt sich konfigurieren – Beispiel: Du schreibst Spanisch, Claude und Gemini sind auf Englisch eingestellt und ein chinesisches Modell auf `zh-CN`.
 
 <p align="center">
   <img src="docs/demo.gif" width="932" alt="Frage auf Chinesisch an Claude: Das Modell erhält Englisch und antwortet auf Englisch, die Oberfläche zeigt die chinesische Übersetzung; mit „Original anzeigen“ und „Gesendeten Text anzeigen“ lässt sich umschalten">
@@ -44,29 +44,34 @@ Lokales Plugin für DeepSeek Harness. Du schreibst in deiner eigenen Sprache, De
 
 ## Installation
 
-```sh
-DSH="/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh"
-"$DSH" plugin --profile desktop add link:$HOME/.dsh/local-plugins/dsh-language-bridge
+**Voraussetzungen:** DeepSeek Harness (getestet mit 0.2.1-rc.5 unter macOS) mit eingerichtetem DeepSeek-API-Key oder angemeldetem DeepSeek-Konto; die Übersetzung übernimmt DeepSeek Flash.
+
+Öffne in Harness die Seite „Plugins“, klicke auf **Add plugin** und gib die folgende Adresse ein. Starte DeepSeek Harness neu, sobald die Installation abgeschlossen ist.
+
+```
+https://github.com/tonyzdev/dsh-language-bridge
 ```
 
-Starte DeepSeek Harness danach neu und lade die Seite neu.
-
-> [!WARNING]
-> **Umstieg von `claude-zh-bridge`**: Aktiviere die beiden Plugins nicht gleichzeitig, sonst wird doppelt übersetzt. Entferne zuerst das alte Plugin und installiere dann das neue:
->
-> ```sh
-> "$DSH" plugin --profile desktop remove @local/claude-zh-bridge
-> ```
-
-> [!NOTE]
-> Alte Sitzungen sind nicht betroffen: Der vom alten Plugin gespeicherte Originaltext (`source.claudeZhBridge`) wird weiterhin angezeigt, bereits bezahlte Übersetzungen werden direkt wiederverwendet (siehe unten [„Kompatibilität mit alten Sitzungen“](#kompatibilität-mit-alten-sitzungen)).
-
 <details>
-<summary><b>Entfernen</b></summary>
+<summary><b>Über die Kommandozeile installieren oder entfernen</b></summary>
 
 <br>
 
-Deaktiviere oder deinstalliere das Plugin auf der Seite „Plugins“ in DSH, oder führe Folgendes aus:
+Beende DeepSeek Harness zuerst vollständig und führe dann Folgendes aus (das ist der Pfad zu `dsh` unter macOS):
+
+```sh
+DSH="/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh"
+"$DSH" plugin --profile desktop add github:tonyzdev/dsh-language-bridge
+```
+
+Wenn du am Code arbeiten willst, klone das Repository und installiere es als Link; deine Änderungen wirken sich dann direkt auf diese Kopie aus:
+
+```sh
+git clone https://github.com/tonyzdev/dsh-language-bridge ~/.dsh/local-plugins/dsh-language-bridge
+"$DSH" plugin --profile desktop add link:$HOME/.dsh/local-plugins/dsh-language-bridge
+```
+
+Zum Entfernen deinstalliere das Plugin auf der Seite „Plugins“ oder beende Harness und führe Folgendes aus:
 
 ```sh
 "$DSH" plugin --profile desktop remove dsh-language-bridge
@@ -99,7 +104,7 @@ Deaktiviere oder deinstalliere das Plugin auf der Seite „Plugins“ in DSH, od
 Die GPT-Regel hat Wortgrenzen: Sie passt auf `gpt-5`, `openai/gpt-4o`, `chatgpt-4o` und `gpt-oss`, trifft aber nicht versehentlich ids wie `egpt-1` oder `mygpt`.
 
 > [!TIP]
-> Die Einstellungen werden in `$DSH_HOME/storages/language-bridge.json` gespeichert und haben Vorrang vor `cordis.patch.yml`. Du kannst auch in `cordis.patch.yml` mit `rules` und `userLanguage` Anfangswerte setzen und mit `provider` (`auto` / `deepseek-official` / `deepseek-account`), `translateInput` und `translateOutput` das Verhalten anpassen.
+> Die Einstellungen werden in `$DSH_HOME/storages/language-bridge.json` (`DSH_HOME` ist standardmäßig `~/.dsh`) gespeichert und haben Vorrang vor `cordis.patch.yml`. Du kannst auch in `cordis.patch.yml` mit `rules` und `userLanguage` Anfangswerte setzen und mit `provider` (`auto` / `deepseek-official` / `deepseek-account`), `translateInput` und `translateOutput` das Verhalten anpassen.
 
 ## Funktionsweise
 
@@ -157,9 +162,19 @@ Der Preis dafür:
 - Bei Sprachpaaren mit derselben Schrift ohne Funktionswortliste (z. B. indonesischsprachiger Nutzer, Modell auf Swahili) wird für jeden Abschnitt ein Aufruf ausgelöst;
 - Besteht ein Text nur aus Han-Zeichen, lassen sich Chinesisch und Japanisch sowie vereinfachte und traditionelle Schrift nicht unterscheiden; dann wird so verfahren, als sei eine Übersetzung nötig.
 
-## Kompatibilität mit alten Sitzungen
+## Umstieg von claude-zh-bridge
 
-Das alte Plugin `claude-zh-bridge` speicherte den Originaltext in `source.claudeZhBridge`; dieses Feld bleibt lesbar. Der Schlüssel des Übersetzungscaches enthält Textabschnitt, Sprache und Route. Dieses Plugin verwendet dieselben Platzhalter und dieselbe Blockaufteilung (durch Unit-Tests abgesichert), sodass die Übersetzungen alter Sitzungen direkt wiederverwendet werden, wenn deine Sprache zu `zh-CN` aufgelöst wird.
+Dieses Plugin ersetzt `claude-zh-bridge`, seinen Vorgänger, der nur Chinesisch unterstützte. Wenn du das alte Plugin nie benutzt hast, kannst du diesen Abschnitt überspringen.
+
+> [!WARNING]
+> Aktiviere die beiden Plugins nicht gleichzeitig, sonst wird doppelt übersetzt. Deinstalliere zuerst das alte Plugin auf der Seite „Plugins“ oder über die Kommandozeile:
+>
+> ```sh
+> DSH="/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh"
+> "$DSH" plugin --profile desktop remove @local/claude-zh-bridge
+> ```
+
+Alte Sitzungen sind nicht betroffen: Der Originaltext, den das alte Plugin in `source.claudeZhBridge` gespeichert hat, wird weiterhin angezeigt. Der Schlüssel des Übersetzungscaches enthält Textabschnitt, Sprache und Route. Dieses Plugin verwendet dieselben Platzhalter und dieselbe Blockaufteilung (durch Unit-Tests abgesichert), sodass bereits bezahlte Übersetzungen aus alten Sitzungen direkt wiederverwendet werden, wenn deine Sprache zu `zh-CN` aufgelöst wird.
 
 ## Entwicklung
 

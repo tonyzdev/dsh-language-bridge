@@ -6,7 +6,7 @@
 
 **各モデルに作業言語を指定** — あなたは自分の言語で入力し、モデルは作業言語で回答し、DeepSeek Flash がその間を翻訳します。
 
-<img src="https://img.shields.io/badge/DeepSeek_Harness-ローカルプラグイン-4d6bfe?style=flat-square" alt="DeepSeek Harness ローカルプラグイン">
+<img src="https://img.shields.io/badge/DeepSeek_Harness-コミュニティプラグイン-4d6bfe?style=flat-square" alt="DeepSeek Harness コミュニティプラグイン">
 <img src="https://img.shields.io/badge/翻訳-DeepSeek_Flash-4d6bfe?style=flat-square" alt="翻訳：DeepSeek Flash">
 <img src="https://img.shields.io/badge/UI-8_言語-555?style=flat-square" alt="UI 8 言語対応">
 
@@ -18,7 +18,7 @@
 
 <br>
 
-DeepSeek Harness のローカルプラグインです。あなたは自分の言語で入力し、DeepSeek Flash がそれをモデルの作業言語に翻訳してから送信します。モデルの回答は再びあなたの言語に翻訳され、元の位置に表示されます。どの言語、どのモデルでも設定できます——例：あなたはスペイン語を使い、Claude と Gemini は英語、ある中国語モデルは `zh-CN` に設定する、といった構成です。
+[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) のコミュニティプラグインです。あなたは自分の言語で入力し、DeepSeek Flash がそれをモデルの作業言語に翻訳してから送信します。モデルの回答は再びあなたの言語に翻訳され、元の位置に表示されます。どの言語、どのモデルでも設定できます——例：あなたはスペイン語を使い、Claude と Gemini は英語、ある中国語モデルは `zh-CN` に設定する、といった構成です。
 
 <p align="center">
   <img src="docs/demo.gif" width="932" alt="中国語で Claude に質問：モデルは英語を受け取り英語で回答し、画面には中国語訳が表示される。「原文を表示」「送信内容を表示」で切り替えられる">
@@ -44,29 +44,34 @@ DeepSeek Harness のローカルプラグインです。あなたは自分の言
 
 ## インストール
 
-```sh
-DSH="/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh"
-"$DSH" plugin --profile desktop add link:$HOME/.dsh/local-plugins/dsh-language-bridge
+**動作要件**：DeepSeek Harness（macOS 版 0.2.1-rc.5 で動作確認済み）と、そこに設定した DeepSeek API キーまたはログイン済みの DeepSeek アカウント。翻訳は DeepSeek Flash が行います。
+
+Harness の「プラグイン」ページで **Add plugin** をクリックし、次のアドレスを入力します。インストールが完了したら、DeepSeek Harness を再起動してください。
+
+```
+https://github.com/tonyzdev/dsh-language-bridge
 ```
 
-その後、DeepSeek Harness を再起動してページを更新してください。
-
-> [!WARNING]
-> **`claude-zh-bridge` からの移行**：2 つのプラグインを同時に有効にしないでください。二重に翻訳されてしまいます。先に旧プラグインを削除してからインストールします：
->
-> ```sh
-> "$DSH" plugin --profile desktop remove @local/claude-zh-bridge
-> ```
-
-> [!NOTE]
-> 旧セッションには影響しません：旧プラグインが保存した原文（`source.claudeZhBridge`）はそのまま表示され、支払い済みの訳文はそのまま再利用されます（後述の[「旧セッションとの互換性」](#旧セッションとの互換性)を参照）。
-
 <details>
-<summary><b>削除</b></summary>
+<summary><b>コマンドラインでのインストールと削除</b></summary>
 
 <br>
 
-DSH の「プラグイン」ページで無効化またはアンインストールするか、次を実行します：
+まず DeepSeek Harness を完全に終了してから、次を実行します（これは macOS での `dsh` のパスです）：
+
+```sh
+DSH="/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh"
+"$DSH" plugin --profile desktop add github:tonyzdev/dsh-language-bridge
+```
+
+コードに手を加える場合は、クローンしてリンクとしてインストールします。編集内容はそのコピーに直接反映されます：
+
+```sh
+git clone https://github.com/tonyzdev/dsh-language-bridge ~/.dsh/local-plugins/dsh-language-bridge
+"$DSH" plugin --profile desktop add link:$HOME/.dsh/local-plugins/dsh-language-bridge
+```
+
+削除するには、「プラグイン」ページでアンインストールするか、Harness を終了してから次を実行します：
 
 ```sh
 "$DSH" plugin --profile desktop remove dsh-language-bridge
@@ -99,7 +104,7 @@ DSH の「プラグイン」ページで無効化またはアンインストー�
 GPT のルールには境界が付いており、`gpt-5`、`openai/gpt-4o`、`chatgpt-4o`、`gpt-oss` に一致し、`egpt-1` や `mygpt` のような id には誤って一致しません。
 
 > [!TIP]
-> 設定は `$DSH_HOME/storages/language-bridge.json` に保存され、`cordis.patch.yml` より優先されます。`cordis.patch.yml` で `rules`、`userLanguage` により初期値を設定し、`provider`（`auto` / `deepseek-official` / `deepseek-account`）、`translateInput`、`translateOutput` で動作を調整することもできます。
+> 設定は `$DSH_HOME/storages/language-bridge.json`（`DSH_HOME` のデフォルトは `~/.dsh`）に保存され、`cordis.patch.yml` より優先されます。`cordis.patch.yml` で `rules`、`userLanguage` により初期値を設定し、`provider`（`auto` / `deepseek-official` / `deepseek-account`）、`translateInput`、`translateOutput` で動作を調整することもできます。
 
 ## 仕組み
 
@@ -157,9 +162,19 @@ flowchart LR
 - 機能語テーブルのない同一文字体系の言語ペア（インドネシア語ユーザーとスワヒリ語モデルなど）では、段落ごとに 1 回呼び出します。
 - 漢字のみの場合は中国語と日本語、また簡体字と繁体字を区別できないため、翻訳が必要なものとして扱います。
 
-## 旧セッションとの互換性
+## claude-zh-bridge からの移行
 
-旧プラグイン `claude-zh-bridge` は原文を `source.claudeZhBridge` に保存しており、このフィールドは引き続き読み取れます。翻訳キャッシュのキーはテキスト断片、言語、ルートを含み、本プラグインは同じプレースホルダーと分割方式を維持している（ユニットテストで保証）ため、あなたの言語が `zh-CN` に解決される場合、旧セッションの訳文はそのまま再利用されます。
+本プラグインは、中国語専用だった前身の `claude-zh-bridge` に代わるものです。使ったことがなければ、このセクションは読み飛ばしてください。
+
+> [!WARNING]
+> 2 つのプラグインを同時に有効にしないでください。すべてが二重に翻訳されてしまいます。先に「プラグイン」ページで旧プラグインをアンインストールするか、コマンドラインで次を実行してください：
+>
+> ```sh
+> DSH="/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh"
+> "$DSH" plugin --profile desktop remove @local/claude-zh-bridge
+> ```
+
+旧セッションには影響しません：旧プラグインが `source.claudeZhBridge` に保存した原文はそのまま表示されます。翻訳キャッシュのキーはテキスト断片、言語、ルートを含み、本プラグインは同じプレースホルダーと分割方式を維持している（ユニットテストで保証）ため、あなたの言語が `zh-CN` に解決される場合、旧セッションで支払い済みの訳文はそのまま再利用されます。
 
 ## 開発
 
