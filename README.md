@@ -5,9 +5,12 @@ DeepSeek Harness 本地插件：**给每个模型指定一种工作语言**。�
 
 例如：你用西班牙语，Claude 和 Gemini 设为英语，某个中文模型设为 `zh-CN`。
 
-| 你看到的（译文） | 点「查看原文」后（模型实际收发的） |
-| --- | --- |
-| ![回答显示为西班牙语](docs/reply-translated.png) | ![模型收到和回答的都是英语](docs/reply-original.png) |
+<p align="center">
+  <img src="docs/demo.gif" width="900" alt="用中文向 Claude 提问：模型收到英文、用英文回答，界面显示中文译文；「查看原文」「查看发送内容」可以切换">
+</p>
+
+上图中，你的语言为 `auto`（跟随中文界面），Claude 的工作语言为英语。回答结束后自动换成中文；「查看原文」显示模型的英文
+回答，「查看发送内容」显示实际发给模型的英文。
 
 ## 功能
 
@@ -19,7 +22,9 @@ DeepSeek Harness 本地插件：**给每个模型指定一种工作语言**。�
 - **失败可见**：翻译失败时照常发送原文，不丢这一轮，并在消息下方显示警告。
 - **同语言零成本**：你的语言和模型的工作语言相同（如 `en-GB` 与 `en`）时，不翻译、不加系统提示、不产生费用。
 
-![翻译失败时的警告](docs/translation-failed.png)
+<p align="center">
+  <img src="docs/translation-failed.png" width="740" alt="翻译失败时，消息下方显示「翻译失败，模型收到的是未翻译的原文」">
+</p>
 
 ## 安装
 
@@ -44,7 +49,9 @@ DSH="/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh"
 
 打开「插件 → 语言桥接」，保存后从下一步开始生效，不用重启。
 
-![设置页](docs/settings.png)
+<p align="center">
+  <img src="docs/settings.gif" width="833" alt="添加规则 qwen → zh-CN：无效正则即时报错，测试模型 id 显示命中哪条规则，保存后生效">
+</p>
 
 - **你的语言**：填 `auto` 时，浏览器把界面语言上报给 Host 并保存下来；界面语言 `zh` 按 `zh-CN` 处理。
 - **模型规则**：可增删、上下移动。正则和语言代码在表单里即时校验，有错误时不能保存。
