@@ -104,16 +104,18 @@ GPT 规则带边界，匹配 `gpt-5`、`openai/gpt-4o`、`chatgpt-4o`、`gpt-oss
 ## 工作原理
 
 ```mermaid
-flowchart TD
-    A([你的输入]) --> B{语言检测}
-    B -- 需要翻译 --> C[DeepSeek Flash 翻译]
-    B -- 不需要 --> D
-    C --> D[["模型：工作语言 + 系统提示规则"]]
-    D --> E{语言检测}
-    E -- 需要翻译 --> F[DeepSeek Flash 翻译]
-    E -- 不需要 --> G
-    F --> G([你看到的回答])
+flowchart LR
+    A([你的输入]) -- 语言检测 --> B[DeepSeek Flash<br/>翻译]
+    B --> C[["模型<br/>工作语言 + 系统提示规则"]]
+    C -- 语言检测 --> D[DeepSeek Flash<br/>翻译]
+    D --> E([你看到的回答])
+    classDef tr fill:#4d6bfe,stroke:#4d6bfe,color:#fff
+    classDef model fill:#1f2335,stroke:#4d6bfe,color:#fff
+    class B,D tr
+    class C model
 ```
+
+<p align="center"><sub>语言检测判断文本已经是目标语言时，跳过翻译，直接发送或显示。</sub></p>
 
 | 文件 | 位置 | 作用 |
 | --- | :---: | --- |
