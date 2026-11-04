@@ -49,7 +49,7 @@ Plugin de la comunidad para [DeepSeek Harness](https://github.com/deepseek-ai/de
 **Lo más rápido:** pega esto en cualquier chat de DSH y deja que el agente lo instale:
 
 ```text
-Install the DeepSeek Harness plugin https://github.com/tonyzdev/dsh-language-bridge into my current profile: run `dsh plugin --profile "$DSH_PROFILE" add github:tonyzdev/dsh-language-bridge` (in the desktop app, use the bundled dsh at runtime/cli/bin/dsh next to app.asar). Do not edit profile files by hand.
+Install the DeepSeek Harness plugin https://github.com/tonyzdev/dsh-language-bridge into my current profile. If you have the plugin_manager tool, call install_bundle to install and enable it. Otherwise read the profile name ($DSH_PROFILE in bash, $env:DSH_PROFILE in PowerShell) and run `dsh plugin --profile <profile> add github:tonyzdev/dsh-language-bridge`, using the bundled CLI next to app.asar (runtime/cli/bin/dsh, or dsh.cmd on Windows) when the profile is desktop; ask for sandbox approval if needed. Do not edit profile files by hand.
 ```
 
 En la página «Plugins» de Harness, haz clic en **Add plugin** e introduce la siguiente dirección. Cuando termine la instalación, haz clic en **Enable now**. Si no aparecen los botones del plugin, recarga la página o reinicia DeepSeek Harness.

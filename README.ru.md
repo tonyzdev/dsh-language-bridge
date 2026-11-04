@@ -49,7 +49,7 @@
 **Быстрее всего:** вставьте это в любой чат DSH, и агент установит плагин сам:
 
 ```text
-Install the DeepSeek Harness plugin https://github.com/tonyzdev/dsh-language-bridge into my current profile: run `dsh plugin --profile "$DSH_PROFILE" add github:tonyzdev/dsh-language-bridge` (in the desktop app, use the bundled dsh at runtime/cli/bin/dsh next to app.asar). Do not edit profile files by hand.
+Install the DeepSeek Harness plugin https://github.com/tonyzdev/dsh-language-bridge into my current profile. If you have the plugin_manager tool, call install_bundle to install and enable it. Otherwise read the profile name ($DSH_PROFILE in bash, $env:DSH_PROFILE in PowerShell) and run `dsh plugin --profile <profile> add github:tonyzdev/dsh-language-bridge`, using the bundled CLI next to app.asar (runtime/cli/bin/dsh, or dsh.cmd on Windows) when the profile is desktop; ask for sandbox approval if needed. Do not edit profile files by hand.
 ```
 
 На странице «Plugins» в Harness нажмите **Add plugin** и введите указанный ниже адрес. После установки нажмите **Enable now**. Если кнопки плагина не появились, обновите страницу или перезапустите DeepSeek Harness.

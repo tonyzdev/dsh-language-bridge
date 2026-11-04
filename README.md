@@ -49,7 +49,7 @@
 **最快**：把下面这句话发给 DSH 里的任意会话，让它自己安装：
 
 ```text
-帮我把 DeepSeek Harness 插件 https://github.com/tonyzdev/dsh-language-bridge 安装到当前 profile：运行 `dsh plugin --profile "$DSH_PROFILE" add github:tonyzdev/dsh-language-bridge`（桌面版请用 app.asar 同级 runtime/cli/bin/dsh 里自带的 dsh），不要手动改 profile 文件。
+帮我把 DeepSeek Harness 插件 https://github.com/tonyzdev/dsh-language-bridge 安装到当前 profile。有 plugin_manager 工具就直接调用 install_bundle 安装并启用；否则读取 profile 名（bash 用 $DSH_PROFILE，PowerShell 用 $env:DSH_PROFILE），运行 `dsh plugin --profile <profile> add github:tonyzdev/dsh-language-bridge`，profile 为 desktop 时用 app.asar 同级 runtime/cli/bin 下自带的 dsh（Windows 为 dsh.cmd）；受沙箱限制时申请审批。不要手动改 profile 文件。
 ```
 
 在 Harness 的「插件」页点 **添加插件**，填入下面的地址；安装完成后点 **立即启用**；若插件的按钮没有出现，刷新页面或重启 DeepSeek Harness。
