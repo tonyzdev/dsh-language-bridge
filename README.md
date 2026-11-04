@@ -1,5 +1,7 @@
 # dsh-language-bridge
 
+**中文** | [English](README.en.md) | [日本語](README.ja.md) | [Español](README.es.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | [Português](README.pt.md)
+
 DeepSeek Harness 本地插件：**给每个模型指定一种工作语言**。你用自己的语言输入，DeepSeek Flash 把它翻译成模型的
 工作语言再发送；模型的回答再翻译回你的语言显示在原位。任何语言、任何模型都可以配置。
 
