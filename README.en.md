@@ -9,7 +9,7 @@ language and shown in place. Any language and any model can be configured.
 For example: you write in Spanish, Claude and Gemini are set to English, and some Chinese model is set to `zh-CN`.
 
 <p align="center">
-  <img src="docs/demo.gif" width="900" alt="Asking Claude a question in Chinese: the model receives English and answers in English, the UI shows the Chinese translation; “View original” and “View sent text” toggle between them">
+  <img src="docs/demo.gif" width="932" alt="Asking Claude a question in Chinese: the model receives English and answers in English, the UI shows the Chinese translation; “View original” and “View sent text” toggle between them">
 </p>
 
 In the recording above, your language is `auto` (following the Chinese interface) and Claude's working language is English.

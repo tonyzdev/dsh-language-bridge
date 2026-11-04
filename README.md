@@ -8,7 +8,7 @@ DeepSeek Harness 本地插件：**给每个模型指定一种工作语言**。�
 例如：你用西班牙语，Claude 和 Gemini 设为英语，某个中文模型设为 `zh-CN`。
 
 <p align="center">
-  <img src="docs/demo.gif" width="900" alt="用中文向 Claude 提问：模型收到英文、用英文回答，界面显示中文译文；「查看原文」「查看发送内容」可以切换">
+  <img src="docs/demo.gif" width="932" alt="用中文向 Claude 提问：模型收到英文、用英文回答，界面显示中文译文；「查看原文」「查看发送内容」可以切换">
 </p>
 
 上图中，你的语言为 `auto`（跟随中文界面），Claude 的工作语言为英语。回答结束后自动换成中文；「查看原文」显示模型的英文

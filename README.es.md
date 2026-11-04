@@ -9,7 +9,7 @@ se muestra en el mismo lugar. Se puede configurar cualquier idioma para cualquie
 Por ejemplo: tú escribes en español, Claude y Gemini se configuran en inglés y algún modelo chino en `zh-CN`.
 
 <p align="center">
-  <img src="docs/demo.gif" width="900" alt="Pregunta a Claude en chino: el modelo recibe inglés y responde en inglés, la interfaz muestra la traducción al chino; «Ver original» y «Ver texto enviado» permiten alternar">
+  <img src="docs/demo.gif" width="932" alt="Pregunta a Claude en chino: el modelo recibe inglés y responde en inglés, la interfaz muestra la traducción al chino; «Ver original» y «Ver texto enviado» permiten alternar">
 </p>
 
 En la animación anterior, tu idioma es `auto` (sigue la interfaz en chino) y el idioma de trabajo de Claude es el inglés.

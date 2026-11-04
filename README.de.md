@@ -9,7 +9,7 @@ wird zurück in deine Sprache übersetzt und an derselben Stelle angezeigt. Jede
 Beispiel: Du schreibst Spanisch, Claude und Gemini sind auf Englisch eingestellt und ein chinesisches Modell auf `zh-CN`.
 
 <p align="center">
-  <img src="docs/demo.gif" width="900" alt="Frage auf Chinesisch an Claude: Das Modell erhält Englisch und antwortet auf Englisch, die Oberfläche zeigt die chinesische Übersetzung; mit „Original anzeigen“ und „Gesendeten Text anzeigen“ lässt sich umschalten">
+  <img src="docs/demo.gif" width="932" alt="Frage auf Chinesisch an Claude: Das Modell erhält Englisch und antwortet auf Englisch, die Oberfläche zeigt die chinesische Übersetzung; mit „Original anzeigen“ und „Gesendeten Text anzeigen“ lässt sich umschalten">
 </p>
 
 Im Bild oben ist deine Sprache `auto` (folgt der chinesischen Oberfläche) und die Arbeitssprache von Claude Englisch. Nach

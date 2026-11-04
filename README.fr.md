@@ -7,7 +7,7 @@ Plugin local pour DeepSeek Harness : **attribuez une langue de travail à chaque
 Par exemple : vous utilisez l'espagnol, Claude et Gemini sont réglés sur l'anglais, et un modèle chinois sur `zh-CN`.
 
 <p align="center">
-  <img src="docs/demo.gif" width="900" alt="Question posée à Claude en chinois : le modèle reçoit l'anglais et répond en anglais, l'interface affiche la traduction chinoise ; « Voir l'original » et « Voir le texte envoyé » permettent de basculer">
+  <img src="docs/demo.gif" width="932" alt="Question posée à Claude en chinois : le modèle reçoit l'anglais et répond en anglais, l'interface affiche la traduction chinoise ; « Voir l'original » et « Voir le texte envoyé » permettent de basculer">
 </p>
 
 Dans l'animation ci-dessus, votre langue est `auto` (elle suit l'interface en chinois) et la langue de travail de Claude est l'anglais. Une fois la réponse terminée, elle est automatiquement remplacée par sa traduction chinoise ; « Voir l'original » (查看原文) affiche la réponse anglaise du modèle, « Voir le texte envoyé » (查看发送内容) affiche le texte anglais réellement envoyé au modèle. La démonstration a été enregistrée avec l'interface en chinois.

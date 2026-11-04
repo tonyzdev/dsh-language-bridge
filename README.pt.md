@@ -9,7 +9,7 @@ para o seu idioma e exibida no mesmo lugar. Qualquer idioma e qualquer modelo po
 Por exemplo: você usa espanhol, Claude e Gemini ficam em inglês, e um modelo chinês fica em `zh-CN`.
 
 <p align="center">
-  <img src="docs/demo.gif" width="900" alt="Pergunta em chinês para o Claude: o modelo recebe inglês e responde em inglês, a interface mostra a tradução em chinês; “Ver original” e “Ver texto enviado” alternam entre as versões">
+  <img src="docs/demo.gif" width="932" alt="Pergunta em chinês para o Claude: o modelo recebe inglês e responde em inglês, a interface mostra a tradução em chinês; “Ver original” e “Ver texto enviado” alternam entre as versões">
 </p>
 
 Na animação acima, seu idioma está em `auto` (segue a interface em chinês) e o idioma de trabalho do Claude é inglês.
