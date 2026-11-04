@@ -1,33 +1,78 @@
 /**
- * Host half of the Claude/Gemini Chinese bridge.
+ * Host half of the language bridge.
  *
- * - `agent/pre-step`: when the Session's model matches `modelPattern` (Claude and Gemini
- *   families by default), user-authored text containing Chinese is translated to English
- *   by DeepSeek before it enters the step, so the durable `user/message` (and therefore
- *   the model input) is English.
- * - `POST /api/claude-zh-bridge/translate`: the browser half asks for the Chinese
- *   translation of one completed bridged-model Turn. Paid DeepSeek results are stored by
- *   the translator in the Session, so reopening reuses them.
+ * - `agent/pre-step`: when the step's model matches a rule, user-authored text is translated
+ *   into that model's working language by DeepSeek before it enters the step, so the durable
+ *   `user/message` (and therefore the model input) is in the working language.
+ * - system prompt section: asks bridged models to reason and reply in their working language.
+ * - `POST /api/language-bridge/translate`: the browser half asks for the translation of one
+ *   completed Turn into the user's language. Paid DeepSeek results are stored by the
+ *   translator in the Session, so reopening reuses them.
+ * - `/api/language-bridge/settings` and `/locale`: the GUI settings page and the UI locale
+ *   that `auto` follows. Saved settings apply from the next step, without a restart.
  */
-export const inject = ['translator', 'connection']
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { needsTranslation } from './detect.js'
+import { translateProtected } from './protect.js'
+import {
+  compileRules, effectiveUserLanguage, fromUiLocale, modelLanguage, resolveSettings, sameLanguage,
+  validateRules, validateUserLanguage, workingLanguageRule,
+} from './rules.js'
 
-const ROUTE = '/api/claude-zh-bridge/translate'
-const CJK = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/
-const LATIN = /[A-Za-z]/
-// Code, URLs and @references stay verbatim; the translator only sees placeholders.
-const PROTECTED = /```[\s\S]*?```|`[^`\n]+`|https?:\/\/[^\s)>\]]+|@"[^"\n]+"|@[^\s,，。；;)）]+/g
+export const inject = ['translator', 'connection', 'systemPrompt']
+
+const API = '/api/language-bridge'
 const PROVIDER_PREFERENCE = ['deepseek-official', 'deepseek-account']
 const PROVIDER_TTL_MS = 60_000
-const CHUNK_CONCURRENCY = 3
+// Before the Harness's environment-bearing prompt suffix (10000), so it stays in the reusable prefix.
+const PROMPT_ORDER = 9900
+
+const defaultStateFile = () => join(process.env.DSH_HOME ?? join(homedir(), '.dsh'), 'storages', 'language-bridge.json')
 
 export function apply(ctx, config = {}) {
   const options = {
     provider: config.provider ?? 'auto',
-    modelPattern: new RegExp(config.modelPattern ?? 'claude|gemini', 'i'),
     translateInput: config.translateInput !== false,
     translateOutput: config.translateOutput !== false,
+    stateFile: typeof config.stateFile === 'string' && config.stateFile !== '' ? config.stateFile : defaultStateFile(),
   }
   const logger = ctx.logger ?? console
+
+  function readSaved() {
+    try {
+      return JSON.parse(readFileSync(options.stateFile, 'utf8'))
+    } catch (error) {
+      if (error?.code !== 'ENOENT') logger.warn?.(`language-bridge: ignoring unreadable settings: ${error?.message ?? error}`)
+      return {}
+    }
+  }
+
+  let saved = readSaved()
+  let settings = resolveSettings(config, saved)
+  let compiled = compileRules(settings.rules)
+  for (const issue of settings.issues) logger.warn?.(`language-bridge: dropped rule ${issue.index}: ${issue.code} (${issue.field})`)
+
+  function persist(patch) {
+    const next = { ...saved, ...patch, version: 1 }
+    mkdirSync(dirname(options.stateFile), { recursive: true })
+    const temporary = `${options.stateFile}.${process.pid}.tmp`
+    writeFileSync(temporary, `${JSON.stringify(next, null, 2)}\n`, { mode: 0o600 })
+    renameSync(temporary, options.stateFile)
+    saved = next
+    settings = resolveSettings(config, saved)
+    compiled = compileRules(settings.rules)
+  }
+
+  const userLanguage = () => effectiveUserLanguage(settings.userLanguage, settings.uiLocale)
+  /** Working language when this model is bridged; a no-op pair is not bridged and costs nothing. */
+  function bridgeLanguage(model) {
+    const language = modelLanguage(compiled, model)
+    if (language === undefined) return undefined
+    const user = userLanguage()
+    return user !== undefined && sameLanguage(user, language) ? undefined : language
+  }
 
   // Latest provider/model per Session from durable selection and request events.
   const routes = new Map()
@@ -44,9 +89,17 @@ export function apply(ctx, config = {}) {
     return routes.get(agent.id) ?? agent.session?.requestContext?.() ?? agent.options
   }
 
-  function isBridgedModel(model) {
-    return typeof model === 'string' && options.modelPattern.test(model)
-  }
+  // Newer Harness builds pass the step's model selection; 0.2.1 passes only the agent.
+  ctx.systemPrompt.section({
+    name: 'language-bridge:working-language',
+    order: PROMPT_ORDER,
+    interpolate: false,
+    text: (context) => {
+      const model = context.modelSelection?.model ?? (context.agent === undefined ? undefined : routeOfAgent(context.agent)?.model)
+      const language = bridgeLanguage(model)
+      return language === undefined ? '' : workingLanguageRule(language)
+    },
+  })
 
   let providerChoice
   async function pickProvider(signal) {
@@ -82,114 +135,56 @@ export function apply(ctx, config = {}) {
     }
   }
 
-  /** Split masked text on paragraph, then line, boundaries into translator-sized chunks. */
-  function chunk(text, max) {
-    const chunks = []
-    let current = ''
-    const push = (piece) => {
-      if (current.length + piece.length <= max) {
-        current += piece
-        return
-      }
-      if (current !== '') chunks.push(current)
-      current = ''
-      if (piece.length <= max) {
-        current = piece
-        return
-      }
-      const lines = piece.split(/(?<=\n)/)
-      if (lines.length > 1) {
-        for (const line of lines) push(line)
-        return
-      }
-      for (let index = 0; index < piece.length; index += max) chunks.push(piece.slice(index, index + max))
-    }
-    for (const piece of text.split(/(?<=\n{2,})/)) push(piece)
-    if (current !== '') chunks.push(current)
-    return chunks
-  }
+  const translateText = (sessionId, text, target, source, signal) => translateProtected(text, {
+    max: Math.max(200, (ctx.translator.maxTextChars ?? 4000) - 100),
+    wanted: (body) => needsTranslation(body, { target, source }),
+    translate: (body) => translateChunk(sessionId, body, target, signal),
+  })
 
-  /**
-   * Translate one text, keeping protected spans verbatim.
-   * @returns the translation, or undefined when placeholders did not survive.
-   */
-  async function translateText(sessionId, text, targetLanguage, wanted, signal) {
-    const tokens = []
-    const masked = text.replace(PROTECTED, (match) => {
-      tokens.push(match)
-      return `⟦${tokens.length - 1}⟧`
-    })
-    const max = Math.max(200, (ctx.translator.maxTextChars ?? 4000) - 100)
-    const pieces = chunk(masked, max)
-    const results = new Array(pieces.length)
-    let next = 0
-    const worker = async () => {
-      while (next < pieces.length) {
-        const index = next++
-        const piece = pieces[index]
-        // Leading/trailing whitespace is restored locally so Markdown structure survives.
-        const [, lead, body, trail] = /^(\s*)([\s\S]*?)(\s*)$/.exec(piece)
-        results[index] = wanted(body) ? lead + (await translateChunk(sessionId, body, targetLanguage, signal)).trim() + trail : piece
-      }
-    }
-    await Promise.all(Array.from({ length: Math.min(CHUNK_CONCURRENCY, pieces.length) }, worker))
-    const translated = results.join('')
-    let intact = true
-    const restored = translated.replace(/⟦\s*(\d+)\s*⟧/g, (match, index) => tokens[Number(index)] ?? match)
-    for (const token of tokens) if (!restored.includes(token)) intact = false
-    return intact ? restored : undefined
-  }
-
-  const hasChineseOutsideCode = (text) => CJK.test(text.replace(PROTECTED, ''))
-  const needsChinese = (text) => {
-    const plain = text.replace(PROTECTED, '').replace(/⟦\d+⟧/g, '')
-    if (!LATIN.test(plain)) return false
-    const cjk = (plain.match(new RegExp(CJK.source, 'g')) ?? []).length
-    const latin = (plain.match(/[A-Za-z]+/g) ?? []).length
-    return latin > cjk / 2
-  }
-
-  async function translateUserMessage(sessionId, message, signal) {
-    let changed = false
+  async function translateUserMessage(sessionId, message, target, source, signal) {
     const content = []
     // Originals ride on the model-invisible message source so the GUI can show them.
     const originals = []
+    const warnings = []
     for (const [index, block] of message.content.entries()) {
-      if (block?.type !== 'text' || !hasChineseOutsideCode(block.text)) {
+      if (block?.type !== 'text' || !needsTranslation(block.text, { target, source })) {
         content.push(block)
         continue
       }
-      const english = await translateText(sessionId, block.text, 'en', (body) => CJK.test(body), signal)
-      if (english === undefined || english.trim() === '') {
-        logger.warn?.('claude-zh-bridge: kept a prompt block untranslated because protected spans changed')
+      let translated
+      try {
+        translated = await translateText(sessionId, block.text, target, source, signal)
+        if (translated === undefined || translated.trim() === '') warnings.push({ index, code: 'protected-spans-changed' })
+      } catch (error) {
+        if (signal.aborted) throw error
+        warnings.push({ index, code: error?.code ?? 'translation-failed' })
+        logger.warn?.(`language-bridge: prompt translation failed, sending the original: ${error?.message ?? error}`)
+      }
+      // A false positive from detection comes back unchanged: nothing to show or toggle.
+      if (translated === undefined || translated.trim() === '' || translated.trim() === block.text.trim()) {
         content.push(block)
         continue
       }
-      changed = true
       originals.push({ index, text: block.text })
-      content.push({ ...block, text: english })
+      content.push({ ...block, text: translated })
     }
-    if (!changed) return message
-    return { ...message, content, source: { ...message.source, claudeZhBridge: { version: 1, originals } } }
+    if (originals.length === 0 && warnings.length === 0) return message
+    return { ...message, content, source: { ...message.source, languageBridge: { version: 2, targetLanguage: target, originals, warnings } } }
   }
 
   ctx.on('agent/pre-step', async (payload, next) => {
     const decision = await next()
     if (!options.translateInput || decision.kind !== 'enter') return decision
     const { agent, signal } = payload
-    if (!isBridgedModel(routeOfAgent(agent)?.model)) return decision
+    const target = bridgeLanguage(payload.modelSelection?.model ?? routeOfAgent(agent)?.model)
+    if (target === undefined) return decision
+    const source = userLanguage()
     let changed = false
     const messages = []
     for (const message of decision.messages) {
-      let replacement = message
-      if (message.role === 'user' && message.source?.kind === 'user' && Array.isArray(message.content)) {
-        try {
-          replacement = await translateUserMessage(agent.id, message, signal)
-        } catch (error) {
-          if (signal.aborted) throw error
-          logger.warn?.(`claude-zh-bridge: prompt translation failed, sending the original: ${error?.message ?? error}`)
-        }
-      }
+      const replacement = message.role === 'user' && message.source?.kind === 'user' && Array.isArray(message.content)
+        ? await translateUserMessage(agent.id, message, target, source, signal)
+        : message
       if (replacement !== message) changed = true
       messages.push(replacement)
     }
@@ -201,7 +196,7 @@ export function apply(ctx, config = {}) {
     headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
   })
 
-  async function sessionIsBridged(sessionId) {
+  async function modelOfSession(sessionId) {
     let route = routes.get(sessionId)
     if (route === undefined) {
       const agent = ctx.get('agents')?.get(sessionId)
@@ -211,11 +206,63 @@ export function apply(ctx, config = {}) {
       const resolved = await ctx.get('sessionController')?.resolveAgent(sessionId)
       if (resolved && 'agent' in resolved) route = routeOfAgent(resolved.agent)
     }
-    return isBridgedModel(route?.model)
+    return route?.model
   }
 
+  const settingsView = () => ({
+    rules: settings.rules,
+    userLanguage: settings.userLanguage,
+    resolvedUserLanguage: userLanguage() ?? null,
+  })
+
   ctx.connection.fetch.register({
-    path: ROUTE,
+    path: `${API}/settings`,
+    methods: ['GET', 'POST'],
+    requestBody: 'buffered',
+    fetch: async (request) => {
+      if (request.method === 'GET') return reply(200, settingsView())
+      let body
+      try {
+        body = await request.json()
+      } catch {
+        return reply(400, { error: 'invalid JSON body' })
+      }
+      const { rules, errors } = validateRules(body?.rules)
+      const language = validateUserLanguage(body?.userLanguage)
+      if (language === undefined) errors.push({ index: -1, field: 'userLanguage', code: 'invalid-language' })
+      if (errors.length > 0) return reply(422, { errors })
+      try {
+        persist({ rules, userLanguage: language })
+      } catch (error) {
+        logger.warn?.(`language-bridge: could not save settings: ${error?.message ?? error}`)
+        return reply(500, { error: 'could not save settings' })
+      }
+      return reply(200, settingsView())
+    },
+  })
+
+  ctx.connection.fetch.register({
+    path: `${API}/locale`,
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async (request) => {
+      const locale = await request.json().then((body) => body?.locale, () => undefined)
+      if (fromUiLocale(locale) === undefined) return reply(400, { error: 'invalid locale' })
+      if (locale !== settings.uiLocale) {
+        try {
+          persist({ uiLocale: locale })
+        } catch (error) {
+          // Keep following the locale for this run even if it cannot be saved.
+          settings = { ...settings, uiLocale: locale }
+          logger.warn?.(`language-bridge: could not save the UI locale: ${error?.message ?? error}`)
+        }
+      }
+      return reply(200, settingsView())
+    },
+  })
+
+  ctx.connection.fetch.register({
+    path: `${API}/translate`,
     methods: ['POST'],
     requestBody: 'buffered',
     fetch: async (request) => {
@@ -228,17 +275,19 @@ export function apply(ctx, config = {}) {
       const { sessionId, text, models } = body ?? {}
       if (typeof sessionId !== 'string' || typeof text !== 'string') return reply(400, { error: 'sessionId and text are required' })
       if (!options.translateOutput) return reply(200, { skipped: 'disabled' })
+      const target = userLanguage()
+      if (target === undefined) return reply(200, { skipped: 'no-user-language' })
       try {
-        const bridged = Array.isArray(models) && models.length > 0
-          ? models.some(isBridgedModel)
-          : await sessionIsBridged(sessionId)
-        if (!bridged) return reply(200, { skipped: 'not-bridged' })
-        if (!needsChinese(text)) return reply(200, { skipped: 'already-chinese' })
-        const chinese = await translateText(sessionId, text, 'zh-CN', needsChinese, request.signal)
-        if (chinese === undefined) return reply(502, { error: 'translation changed code or links' })
-        return reply(200, { text: chinese })
+        const candidates = Array.isArray(models) && models.length > 0 ? models : [await modelOfSession(sessionId)]
+        const source = candidates.map(bridgeLanguage).find((language) => language !== undefined)
+        if (source === undefined) return reply(200, { skipped: 'not-bridged' })
+        if (!needsTranslation(text, { target, source })) return reply(200, { skipped: 'already-translated' })
+        const translated = await translateText(sessionId, text, target, source, request.signal)
+        if (translated === undefined) return reply(502, { error: 'translation changed code or links' })
+        if (translated.trim() === text.trim()) return reply(200, { skipped: 'already-translated' })
+        return reply(200, { text: translated })
       } catch (error) {
-        logger.warn?.(`claude-zh-bridge: reply translation failed: ${error?.message ?? error}`)
+        logger.warn?.(`language-bridge: reply translation failed: ${error?.message ?? error}`)
         return reply(502, { error: error?.code ?? error?.message ?? 'translation failed' })
       }
     },

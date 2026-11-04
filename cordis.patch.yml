@@ -1,14 +1,17 @@
 - insert:
     # DeepSeek Flash translation service shipped with dsh (experimental, opt-in).
-    - id: claude-zh-bridge-translator
+    - id: language-bridge-translator
       name: '@deepseek-ai/dsh-experimental-translator'
-    - id: claude-zh-bridge
-      name: '@local/claude-zh-bridge'
+    - id: language-bridge
+      name: 'dsh-language-bridge'
       config:
         # auto picks deepseek-official (API key), then deepseek-account; or name one explicitly.
         provider: auto
-        # Case-insensitive regular expression tested against the model id.
-        # Both the Claude and the Gemini families get the English-input / Chinese-reply bridge.
-        modelPattern: 'claude|gemini'
         translateInput: true
         translateOutput: true
+        # Rules and the user's language are edited on the plugin's page in the GUI. They can
+        # also be seeded here; settings saved in the GUI take precedence.
+        # userLanguage: auto
+        # rules:
+        #   - { match: 'claude', language: en }
+        #   - { match: 'qwen', language: zh-CN }

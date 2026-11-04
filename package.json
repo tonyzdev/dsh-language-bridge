@@ -1,8 +1,8 @@
 {
-  "name": "@local/claude-zh-bridge",
-  "version": "1.1.0",
+  "name": "dsh-language-bridge",
+  "version": "2.0.0",
   "private": true,
-  "description": "Translate Chinese prompts to English for Claude and Gemini models with DeepSeek, and show their replies in Chinese.",
+  "description": "Per-model working languages for DeepSeek Harness: DeepSeek translates prompts into the model's language and replies into yours.",
   "type": "module",
   "exports": {
     ".": "./index.js",
@@ -10,13 +10,16 @@
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
   },
-  "files": ["index.js", "client.js", "cordis.patch.yml", "locale/*.json", "icon.svg"],
+  "files": ["index.js", "detect.js", "protect.js", "rules.js", "client.js", "cordis.patch.yml", "locale/*.json", "icon.svg"],
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
   "dsh": {
     "bundle": { "patch": "./cordis.patch.yml" },
     "client": {
       "platform": "web",
       "immediately": true,
-      "inject": ["@deepseek-ai/dsh-client-locale", "@deepseek-ai/dsh-client-ui-chat"]
+      "inject": ["@deepseek-ai/dsh-client-locale", "@deepseek-ai/dsh-client-ui-chat", "@deepseek-ai/dsh-client-ui-plugin-manager"]
     }
   }
 }
